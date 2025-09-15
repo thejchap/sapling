@@ -1,6 +1,3 @@
-"""Hello."""
+"""sapling - simple persistence for pydantic models."""
 
-
-def hello() -> str:
-    """Hello."""
-    return "Hello from sapling!"
+from .database import Database as Database
