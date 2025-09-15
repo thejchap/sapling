@@ -1,8 +1,35 @@
 # design
 
+## unstructured thoughts
+
 - zero-setup persistence
 - solid, battle-tested storage (sqlite)
 - extend pydantic - does not require subclassing, etc. just annotate existing
   pydantic models
 - easy integration with fastapi
 - strongly typed
+- primary keys - options
+  - define field _on_ pydantic model
+    - `@primary_key` decorator
+    - `Annotated[str, PrimaryKey]`
+    - requires a bit more upfront work for users (and requires framework to
+      validate)
+    - system fields/auto generated
+      - if on pydantic model need to do some metaprogramming
+      - conflicts with other model fields
+    - requires more non-pydantic code on pydantic models
+  - wrapper class gets returned from DB: `Document[MyModel]`
+    - pydantic models can stay "pure"
+    - this can have system-generated persistence-related fields on it, makes it
+      easier to swap out for other storage
+    - more closely mirrors the actual structure of data (you have a generic
+      document with MyModel specialization, that has a `.model` field on it with
+      the actual model)
+    - in the db a document would be a unit of persistence, with the model
+      contents being a json blob on it
+
+## inspo
+
+- https://www.convex.dev/
+- https://backchannel.org/blog/friendfeed-schemaless-mysql
+- https://www.prisma.io/client

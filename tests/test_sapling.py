@@ -1,15 +1,19 @@
 from pydantic import BaseModel
 
-from sapling.database import Database
+from sapling import Database
 
 
 class Hello(BaseModel):
     world: str = "world"
 
 
-def test_hello_world():
+def test_basic():
     db = Database()
     hello = Hello()
-
     with db.connection() as conn, conn.transaction() as txn:
-        txn.insert(hello)
+        record = txn.create(hello)
+        record = txn.get(Hello, record.id_)
+        assert record
+        record = txn.fetch(Hello, record.id_)
+        records = txn.query(Hello).where().all()
+        assert len(records) == 1
