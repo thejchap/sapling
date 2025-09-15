@@ -1,0 +1,57 @@
+[project]
+name = "sapling"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [{ name = "Justin Chapman", email = "commonmodestudio@gmail.com" }]
+requires-python = ">=3.13"
+dependencies = []
+
+[build-system]
+requires = ["uv_build>=0.8.4,<0.9.0"]
+build-backend = "uv_build"
+
+[dependency-groups]
+dev = ["basedpyright>=1.31.4", "pytest>=8.4.2", "ruff>=0.13.0"]
+
+[tool.ruff]
+line-length = 88
+indent-width = 4
+target-version = "py313"
+
+[tool.ruff.lint.per-file-ignores]
+"tests/*.py" = ["S101", "D100", "D101", "D102", "D103", "D104", "ANN201"]
+
+[tool.ruff.lint.pycodestyle]
+max-line-length = 88
+
+[tool.ruff.lint]
+select = ["ALL"]
+ignore = [
+  # may cause issues with formatter
+  "COM812",
+  # incompatible with D213
+  "D212",
+  # incompatible with D211
+  "D203",
+  # missing docstring
+  # "D100",
+  # "D101",
+  # "D102",
+  # "D103",
+  # "D104",
+  # "D107",
+  # TODOs
+  "FIX002",
+  "FIX003",
+  "TD003",
+  "ERA001",
+]
+fixable = ["ALL"]
+
+
+[tool.pyright]
+extraPaths = ["src"]
+typeCheckingMode = "strict"
+venvPath = "."
+venv = ".venv"
