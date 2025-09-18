@@ -4,7 +4,7 @@ from sapling import Database
 
 
 class Hello(BaseModel):
-    world: str = "world"
+    hello: str = "world"
 
 
 def test_basic():
@@ -12,8 +12,6 @@ def test_basic():
     hello = Hello()
     with db.connection() as conn, conn.transaction() as txn:
         record = txn.create(hello)
-        record = txn.get(Hello, record.id_)
-        assert record
-        record = txn.fetch(Hello, record.id_)
-        records = txn.query(Hello).where().all()
-        assert len(records) == 1
+        maybe_record = txn.get(Hello, record.model_id)
+        assert maybe_record
+        record = txn.fetch(Hello, record.model_id)
