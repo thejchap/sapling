@@ -9,6 +9,8 @@ from typing import TYPE_CHECKING, Any, Self
 from pydantic import BaseModel, ConfigDict, Field
 from ulid import ULID
 
+from sapling.errors import NotFoundError
+
 if TYPE_CHECKING:
     from collections.abc import Callable, Generator
     from types import TracebackType
@@ -65,9 +67,15 @@ class Index[T: BaseModel]:
 class Transaction:
     sqlite3_transaction: sqlite3.Connection
 
-    def create[T: BaseModel](self, model: T) -> Document[T]:
+    def put[T: BaseModel](
+        self,
+        model_class: type[T],
+        model_id: str,
+        model: T,
+    ) -> Document[T]:
+        model_id = str(ULID.parse(model_id))
         conn = self.sqlite3_transaction
-        conn.row_factory = Document[T].row_factory(model.__class__)
+        conn.row_factory = Document[T].row_factory(model_class)
         res = conn.execute(
             """\
 INSERT INTO document VALUES (
@@ -81,8 +89,8 @@ INSERT INTO document VALUES (
 ;
             """.strip(),
             {
-                "model_class": model.__class__.__name__,
-                "model_id": str(ULID()),
+                "model_class": model_class.__name__,
+                "model_id": model_id,
                 "model": model.model_dump_json(),
             },
         )
@@ -91,8 +99,9 @@ INSERT INTO document VALUES (
     def get[T: BaseModel](
         self,
         model_class: type[T],
-        model_id: ULID,
+        model_id: str,
     ) -> Document[T] | None:
+        model_id = str(ULID.parse(model_id))
         conn = self.sqlite3_transaction
         conn.row_factory = Document[T].row_factory(model_class=model_class)
         res = conn.execute(
@@ -112,10 +121,24 @@ LIMIT 1
         )
         return res.fetchone()
 
-    def fetch[T: BaseModel](self, model_class: type[T], model_id: ULID) -> Document[T]:
+    def fetch[T: BaseModel](self, model_class: type[T], model_id: str) -> Document[T]:
         if document := self.get(model_class=model_class, model_id=model_id):
             return document
-        raise ValueError
+        raise NotFoundError
+
+    def delete(self, model_class: type[BaseModel], model_id: str) -> None:
+        conn = self.sqlite3_transaction
+        conn.execute(
+            """\
+DELETE
+FROM document
+WHERE
+    model_class = :model_class
+    AND model_id = :model_id
+;
+            """.strip(),
+            {"model_class": model_class.__name__, "model_id": str(model_id)},
+        )
 
     def index[T: BaseModel](self, model_class: type[T]) -> Index[T]:
         return Index(model_class=model_class)

@@ -27,6 +27,12 @@
       the actual model)
     - in the db a document would be a unit of persistence, with the model
       contents being a json blob on it
+- queries
+  - allow sql queries directly
+    - user would have to get the correct shape back for `Document[MyModel]`
+  - query builder
+    - large in scope, would have to think more about escape hatches
+  - explicit indexes to query on other fields besides pk
 
 ## inspo
 

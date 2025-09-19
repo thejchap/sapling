@@ -1,6 +1,9 @@
+import pytest
 from pydantic import BaseModel
+from ulid import ULID
 
 from sapling import Database
+from sapling.errors import NotFoundError
 
 
 class Hello(BaseModel):
@@ -11,7 +14,12 @@ def test_basic():
     db = Database()
     hello = Hello()
     with db.connection() as conn, conn.transaction() as txn:
-        record = txn.create(hello)
-        maybe_record = txn.get(Hello, record.model_id)
+        pk = str(ULID())
+        record = txn.put(Hello, pk, hello)
+        assert record.model_id == pk
+        maybe_record = txn.get(Hello, pk)
         assert maybe_record
-        record = txn.fetch(Hello, record.model_id)
+        record = txn.fetch(Hello, pk)
+        txn.delete(Hello, pk)
+        with pytest.raises(NotFoundError):
+            txn.fetch(Hello, pk)
