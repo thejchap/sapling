@@ -11,3 +11,6 @@ wheels/
 
 # CodSpeed
 .codspeed/
+
+# MkDocs
+site/
