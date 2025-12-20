@@ -65,3 +65,5 @@ uv run ruff format
 - <https://docs.python.org/3/library/typing.html>
 - <https://docs.pydantic.dev/2.12/>
 - <https://fastapi.tiangolo.com/tutorial/>
+- <https://docs.python.org/3/library/sqlite3.html>
+- <https://docs.python.org/3/library/doctest.html>

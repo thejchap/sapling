@@ -1,28 +1,52 @@
 from __future__ import annotations
 
-import logging
-import sqlite3
-from contextlib import contextmanager
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
-from sapling.errors import NotFoundError
-
 if TYPE_CHECKING:
-    from collections.abc import Callable, Generator
+    from collections.abc import Generator, Iterator
+    from contextlib import AbstractContextManager
     from types import TracebackType
 
-logging.basicConfig(level=logging.INFO)
-LOGGER = logging.getLogger(__name__)
+    from sapling.backends.base import Backend
+
+
+class _TransactionWrapper:
+    """
+    Wrapper for backend transactions.
+
+    works as both context managers and generators.
+    """
+
+    def __init__(self, backend_transaction_cm: AbstractContextManager[Backend]) -> None:
+        self._backend_txn_cm = backend_transaction_cm
+
+    def __enter__(self) -> Backend:
+        return self._backend_txn_cm.__enter__()
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> bool | None:
+        return self._backend_txn_cm.__exit__(exc_type, exc_value, traceback)
+
+    def __call__(self) -> Iterator[Backend]:
+        return iter(self)
+
+    def __iter__(self) -> Generator[Backend]:
+        with self._backend_txn_cm as txn:
+            yield txn
 
 
 class Document[T: BaseModel](BaseModel):
     """
-    A Document is a persisted model.
+    pure data container for persisted models.
 
-    Documents contain model data, model type, and model id
+    documents contain model data, model type, and model id
+    no backend-specific logic - backends handle document creation
     """
 
     model_config = ConfigDict(frozen=True)
@@ -30,171 +54,66 @@ class Document[T: BaseModel](BaseModel):
     model_id: str
     model_class: str
 
-    @classmethod
-    def row_factory(
-        cls,
-        model_class: type[T],
-    ) -> Callable[..., Document[T]]:
-        """
-        Create a `row_factory` for a given model type.
-
-        https://docs.python.org/3/library/sqlite3.html#how-to-create-and-use-row-factories
-        """
-
-        def factory(cursor: sqlite3.Cursor, row: tuple[Any]) -> Document[T]:
-            fields = [column[0] for column in cursor.description]
-            raw = dict(zip(fields, row, strict=False))
-            model = model_class.model_validate_json(raw.pop("model"))
-            return cls(
-                model=model,
-                model_class=raw["model_class"],
-                model_id=raw["model_id"],
-            )
-
-        return factory
-
-
-@dataclass(frozen=True, kw_only=True)
-class Index[T: BaseModel]:
-    model_class: type[T]
-
-    def get_all(self, _value: str) -> list[Document[T]]:
-        return []
-
-
-@dataclass(frozen=True, kw_only=True)
-class Transaction:
-    sqlite3_transaction: sqlite3.Connection
-
-    def put[T: BaseModel](
-        self,
-        model_class: type[T],
-        model_id: str,
-        model: T,
-    ) -> Document[T]:
-        conn = self.sqlite3_transaction
-        conn.row_factory = Document[T].row_factory(model_class)
-        res = conn.execute(
-            """\
-INSERT INTO document VALUES (
-    :model_class,
-    :model_id,
-    :model
-) RETURNING
-    model_class,
-    model_id,
-    model
-;
-            """.strip(),
-            {
-                "model_class": model_class.__name__,
-                "model_id": model_id,
-                "model": model.model_dump_json(),
-            },
-        )
-        return res.fetchone()
-
-    def get[T: BaseModel](
-        self,
-        model_class: type[T],
-        model_id: str,
-    ) -> Document[T] | None:
-        conn = self.sqlite3_transaction
-        conn.row_factory = Document[T].row_factory(model_class=model_class)
-        res = conn.execute(
-            """\
-SELECT
-    model_class,
-    model_id,
-    model
-FROM document
-WHERE
-    model_class = :model_class
-    AND model_id = :model_id
-LIMIT 1
-;
-            """.strip(),
-            {"model_class": model_class.__name__, "model_id": str(model_id)},
-        )
-        return res.fetchone()
-
-    def fetch[T: BaseModel](self, model_class: type[T], model_id: str) -> Document[T]:
-        if document := self.get(model_class=model_class, model_id=model_id):
-            return document
-        raise NotFoundError
-
-    def delete(self, model_class: type[BaseModel], model_id: str) -> None:
-        conn = self.sqlite3_transaction
-        conn.execute(
-            """\
-DELETE
-FROM document
-WHERE
-    model_class = :model_class
-    AND model_id = :model_id
-;
-            """.strip(),
-            {"model_class": model_class.__name__, "model_id": str(model_id)},
-        )
-
-    def index[T: BaseModel](self, model_class: type[T]) -> Index[T]:
-        return Index(model_class=model_class)
-
-
-class Connection:
-    """
-    Wrapper around a sqlite3 connection.
-
-    See: https://docs.python.org/3/library/sqlite3.html
-    """
-
-    sqlite3_connection: sqlite3.Connection
-
-    @contextmanager
-    def transaction(self) -> Generator[Transaction]:
-        if not self.sqlite3_connection:
-            raise ValueError
-        with self.sqlite3_connection as transaction:
-            yield Transaction(sqlite3_transaction=transaction)
-
-    def __enter__(self) -> Self:
-        """TODO."""
-        self.sqlite3_connection = sqlite3.connect(":memory:")
-        self._initdb()
-        return self
-
-    def __exit__(
-        self,
-        exc_type: type[BaseException] | None,
-        exc_value: BaseException | None,
-        traceback: TracebackType | None,
-        /,
-    ) -> None:
-        """TODO."""
-        self.sqlite3_connection.close()
-
-    def _initdb(self) -> None:
-        conn = self.sqlite3_connection
-        conn.set_trace_callback(LOGGER.debug)
-        with conn:
-            conn.execute(
-                """\
-CREATE TABLE IF NOT EXISTS document (
-    model_class VARCHAR,
-    model_id CHARACTER(26),
-    model BLOB,
-    PRIMARY KEY (model_class, model_id)
-);
-""".strip()
-            )
-
 
 class Database:
-    @contextmanager
-    def connection(self) -> Generator[Connection]:
-        with Connection() as conn:
-            yield conn
+    """
+    database - thin wrapper that delegates to backends.
 
-    def transaction(self) -> Generator[Transaction]:
-        with self.connection() as conn, conn.transaction() as txn:
+    provides convenient api for crud operations with automatic transactions
+    """
+
+    def __init__(self, backend: Backend | None = None) -> None:
+        from sapling.backends.sqlite import SQLiteBackend  # noqa: PLC0415
+
+        self._backend = backend if backend is not None else SQLiteBackend()
+
+    def transaction(self) -> _TransactionWrapper:
+        """
+        Context manager for multi-operation transactions.
+
+        use with `with db.transaction() as txn:`
+        yields the backend instance for direct crud operations
+        commits on success, rolls back on exception
+
+        for fastapi, use transaction_dependency() instead
+        """
+        return _TransactionWrapper(self._backend.transaction())
+
+    def transaction_dependency(self) -> Generator[Backend]:
+        """
+        Yield backend transaction for fastapi dependency injection.
+
+        use with `Depends(db.transaction_dependency)`
+        yields the backend instance for direct crud operations
+        """
+        with self._backend.transaction() as txn:
             yield txn
+
+    def get[T: BaseModel](
+        self, model_class: type[T], model_id: str
+    ) -> Document[T] | None:
+        """Get document by id (auto-transaction)."""
+        with self.transaction() as txn:
+            return txn.get(model_class, model_id)
+
+    def put[T: BaseModel](
+        self, model_class: type[T], model_id: str, model: T
+    ) -> Document[T]:
+        """Insert or update document (auto-transaction)."""
+        with self.transaction() as txn:
+            return txn.put(model_class, model_id, model)
+
+    def fetch[T: BaseModel](self, model_class: type[T], model_id: str) -> Document[T]:
+        """Get document by id, raises NotFoundError if not found (auto-transaction)."""
+        with self.transaction() as txn:
+            return txn.fetch(model_class, model_id)
+
+    def delete(self, model_class: type[BaseModel], model_id: str) -> None:
+        """Delete document by id (auto-transaction)."""
+        with self.transaction() as txn:
+            return txn.delete(model_class, model_id)
+
+    def all[T: BaseModel](self, model_class: type[T]) -> list[Document[T]]:
+        """Get all documents of a model class (auto-transaction)."""
+        with self.transaction() as txn:
+            return txn.all(model_class)

@@ -7,7 +7,7 @@ from fastapi.testclient import TestClient
 from pydantic import BaseModel
 
 from sapling import Database
-from sapling.database import Transaction
+from sapling.backends.base import Backend
 
 
 class User(BaseModel):
@@ -22,27 +22,29 @@ def app():
 
     @app.post("/users/{user_id}")
     def create_user(
-        user_id: str, user: User, txn: Annotated[Transaction, Depends(db.transaction)]
+        user_id: str,
+        user: User,
+        txn: Annotated[Backend, Depends(db.transaction_dependency)],
     ) -> dict:
         doc = txn.put(User, user_id, user)
         return {"id": doc.model_id, "user": doc.model.model_dump()}
 
     @app.get("/users/{user_id}")
     def get_user(
-        user_id: str, txn: Annotated[Transaction, Depends(db.transaction)]
+        user_id: str, txn: Annotated[Backend, Depends(db.transaction_dependency)]
     ) -> dict:
         doc = txn.fetch(User, user_id)
         return doc.model.model_dump()
 
     @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
     def delete_user(
-        user_id: str, txn: Annotated[Transaction, Depends(db.transaction)]
+        user_id: str, txn: Annotated[Backend, Depends(db.transaction_dependency)]
     ) -> None:
         txn.delete(User, user_id)
 
     @app.get("/users/{user_id}/error")
     def get_user_with_error(
-        user_id: str, txn: Annotated[Transaction, Depends(db.transaction)]
+        user_id: str, txn: Annotated[Backend, Depends(db.transaction_dependency)]
     ) -> dict:
         txn.put(User, user_id, User(name="test", email="test@example.com"))
         raise ValueError

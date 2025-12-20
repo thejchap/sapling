@@ -28,7 +28,7 @@ indent-width = 4
 target-version = "py313"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*.py" = ["S101", "ANN201"]
+"tests/*.py" = ["S101", "ANN201", "PLR2004"]
 
 [tool.ruff.lint.pycodestyle]
 max-line-length = 88
