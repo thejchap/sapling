@@ -12,6 +12,8 @@ if TYPE_CHECKING:
 
 
 class Backend(ABC):
+    """abstract base class for storage backends."""
+
     @abstractmethod
     def get[T: BaseModel](
         self, model_class: type[T], model_id: str

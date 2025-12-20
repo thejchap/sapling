@@ -22,6 +22,26 @@ _CONNECTION_NOT_INITIALIZED = "Connection not initialized"
 
 
 class SQLiteBackend(Backend):
+    """
+    sqlite-based storage backend.
+
+    provides persistent storage using sqlite database.
+    supports both file-based and in-memory modes.
+
+    Args:
+        path: database file path, or ":memory:" for in-memory (default)
+
+    Example:
+        ```python
+        # file-based
+        backend = SQLiteBackend("/path/to/db.sqlite")
+
+        # in-memory (default)
+        backend = SQLiteBackend()
+        ```
+
+    """
+
     def __init__(self, path: str = ":memory:") -> None:
         self.path = path
         self._conn: sqlite3.Connection | None = None

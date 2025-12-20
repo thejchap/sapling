@@ -21,6 +21,13 @@ uv run ruff check --fix
 uv run ruff format
 ```
 
+## burndown
+
+- [ ] mkdocs
+- [ ] mkdocstrings
+- [ ] mdformat ruff
+- [ ] pre-commit <https://github.com/pre-commit/pre-commit>
+
 ## design
 
 ### unstructured thoughts

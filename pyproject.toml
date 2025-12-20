@@ -16,6 +16,7 @@ dev = [
   "fastapi>=0.125.0",
   "httpx>=0.28.1",
   "mkdocs-material>=9.7.1",
+  "mkdocstrings[python]>=0.27.0",
   "pytest>=8.4.2",
   "pytest-codspeed==4.2.0",
   "ruff>=0.13.0",
@@ -56,3 +57,7 @@ ignore = [
   "ERA001",
 ]
 fixable = ["ALL"]
+
+[tool.ruff.format]
+docstring-code-format = true
+

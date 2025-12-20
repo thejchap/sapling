@@ -43,10 +43,24 @@ class _TransactionWrapper:
 
 class Document[T: BaseModel](BaseModel):
     """
-    pure data container for persisted models.
+    container for persisted pydantic models.
 
-    documents contain model data, model type, and model id
-    no backend-specific logic - backends handle document creation
+    documents wrap model data with persistence metadata, keeping pydantic
+    models pure (no database-specific fields).
+
+    Attributes:
+        model: the pydantic model instance
+        model_id: unique identifier
+        model_class: fully qualified model class name
+
+    Example:
+        ```python
+        user = User(name="alice", email="alice@example.com")
+        doc = txn.put(User, "user_1", user)
+        print(doc.model_id)  # "user_1"
+        print(doc.model.name)  # "alice"
+        ```
+
     """
 
     model_config = ConfigDict(frozen=True)
@@ -57,9 +71,22 @@ class Document[T: BaseModel](BaseModel):
 
 class Database:
     """
-    database - thin wrapper that delegates to backends.
+    main interface for sapling persistence.
 
-    provides convenient api for crud operations with automatic transactions
+    provides crud operations with automatic transaction management.
+    delegates to backend implementations for storage.
+
+    Args:
+        backend: storage backend (defaults to SQLiteBackend)
+        initialize: whether to initialize backend immediately
+
+    Example:
+        ```python
+        db = Database()
+        user = User(name="alice", email="alice@example.com")
+        doc = db.put(User, "user_1", user)
+        ```
+
     """
 
     def __init__(
@@ -72,26 +99,52 @@ class Database:
             self._backend.initialize()
 
     def initialize(self) -> None:
+        """
+        Initialize backend (idempotent - safe to call multiple times).
+
+        use this when `initialize=False` was passed to Database constructor.
+        """
         self._backend.initialize()
 
     def transaction(self) -> _TransactionWrapper:
         """
-        Context manager for multi-operation transactions.
+        Create transaction context for multiple operations.
 
-        use with `with db.transaction() as txn:`
-        yields the backend instance for direct crud operations
-        commits on success, rolls back on exception
+        commits on success, rolls back on exception.
 
-        for fastapi, use transaction_dependency() instead
+        Returns:
+            context manager yielding backend instance
+
+        Example:
+            ```python
+            with db.transaction() as txn:
+                txn.put(User, "1", user1)
+                txn.put(User, "2", user2)
+            ```
+
         """
         return _TransactionWrapper(self._backend.transaction())
 
     def transaction_dependency(self) -> Generator[Backend]:
         """
-        Yield backend transaction for fastapi dependency injection.
+        Fastapi dependency for request-scoped transactions.
 
-        use with `Depends(db.transaction_dependency)`
-        yields the backend instance for direct crud operations
+        use with Depends() for automatic transaction management.
+
+        Yields:
+            backend instance for crud operations
+
+        Example:
+            ```python
+            @app.post("/users/{user_id}")
+            def create(
+                user_id: str,
+                user: User,
+                txn: Annotated[Backend, Depends(db.transaction_dependency)],
+            ):
+                return txn.put(User, user_id, user)
+            ```
+
         """
         with self._backend.transaction() as txn:
             yield txn
@@ -99,28 +152,80 @@ class Database:
     def get[T: BaseModel](
         self, model_class: type[T], model_id: str
     ) -> Document[T] | None:
-        """Get document by id (auto-transaction)."""
+        """
+        Retrieve document by id, returns None if not found.
+
+        Args:
+            model_class: pydantic model class
+            model_id: document identifier
+
+        Returns:
+            document if found, None otherwise
+
+        """
         with self.transaction() as txn:
             return txn.get(model_class, model_id)
 
     def put[T: BaseModel](
         self, model_class: type[T], model_id: str, model: T
     ) -> Document[T]:
-        """Insert or update document (auto-transaction)."""
+        """
+        Insert or update document.
+
+        Args:
+            model_class: pydantic model class
+            model_id: document identifier
+            model: pydantic model instance
+
+        Returns:
+            persisted document
+
+        """
         with self.transaction() as txn:
             return txn.put(model_class, model_id, model)
 
     def fetch[T: BaseModel](self, model_class: type[T], model_id: str) -> Document[T]:
-        """Get document by id, raises NotFoundError if not found (auto-transaction)."""
+        """
+        Retrieve document by id, raises if not found.
+
+        Args:
+            model_class: pydantic model class
+            model_id: document identifier
+
+        Returns:
+            document
+
+        Raises:
+            NotFoundError: document does not exist
+
+        """
         with self.transaction() as txn:
             return txn.fetch(model_class, model_id)
 
     def delete(self, model_class: type[BaseModel], model_id: str) -> None:
-        """Delete document by id (auto-transaction)."""
+        """
+        Delete document by id.
+
+        idempotent - no error if document doesn't exist.
+
+        Args:
+            model_class: pydantic model class
+            model_id: document identifier
+
+        """
         with self.transaction() as txn:
             return txn.delete(model_class, model_id)
 
     def all[T: BaseModel](self, model_class: type[T]) -> list[Document[T]]:
-        """Get all documents of a model class (auto-transaction)."""
+        """
+        Retrieve all documents of given model class.
+
+        Args:
+            model_class: pydantic model class
+
+        Returns:
+            list of documents (empty if none exist)
+
+        """
         with self.transaction() as txn:
             return txn.all(model_class)

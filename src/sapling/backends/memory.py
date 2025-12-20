@@ -14,6 +14,20 @@ if TYPE_CHECKING:
 
 
 class MemoryBackend(Backend):
+    """
+    in-memory storage backend.
+
+    stores documents in python dict, no persistence.
+    useful for testing and development.
+
+    Example:
+        ```python
+        backend = MemoryBackend()
+        db = Database(backend=backend)
+        ```
+
+    """
+
     def __init__(self) -> None:
         self._store: dict[tuple[str, str], dict] = {}
 
