@@ -16,6 +16,7 @@ def db() -> Database:
     return Database()
 
 
+@pytest.mark.benchmark(group="sqlite3_memory")
 def test_benchmark_put(benchmark: BenchmarkFixture, db: Database) -> None:
     def put_operation() -> None:
         model = BenchmarkModel()
@@ -25,6 +26,7 @@ def test_benchmark_put(benchmark: BenchmarkFixture, db: Database) -> None:
     benchmark(put_operation)
 
 
+@pytest.mark.benchmark(group="sqlite3_memory")
 def test_benchmark_get(benchmark: BenchmarkFixture, db: Database) -> None:
     model = BenchmarkModel()
     with db.transaction() as txn:
@@ -36,6 +38,7 @@ def test_benchmark_get(benchmark: BenchmarkFixture, db: Database) -> None:
         benchmark(get_operation)
 
 
+@pytest.mark.benchmark(group="sqlite3_memory")
 def test_benchmark_fetch(benchmark: BenchmarkFixture, db: Database) -> None:
     model = BenchmarkModel()
     with db.transaction() as txn:
@@ -47,6 +50,7 @@ def test_benchmark_fetch(benchmark: BenchmarkFixture, db: Database) -> None:
         benchmark(fetch_operation)
 
 
+@pytest.mark.benchmark(group="sqlite3_memory")
 def test_benchmark_delete(benchmark: BenchmarkFixture, db: Database) -> None:
     def delete_operation() -> None:
         model = BenchmarkModel()
@@ -57,6 +61,7 @@ def test_benchmark_delete(benchmark: BenchmarkFixture, db: Database) -> None:
     benchmark(delete_operation)
 
 
+@pytest.mark.benchmark(group="sqlite3_memory")
 def test_benchmark_put_get_cycle(benchmark: BenchmarkFixture, db: Database) -> None:
     def put_get_cycle() -> None:
         model = BenchmarkModel()

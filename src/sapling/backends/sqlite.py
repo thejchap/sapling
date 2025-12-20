@@ -4,7 +4,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import BaseModel
 
@@ -14,6 +14,8 @@ from sapling.errors import NotFoundError
 
 if TYPE_CHECKING:
     from collections.abc import Generator
+
+type IsolationLevel = Literal["DEFERRED", "IMMEDIATE", "EXCLUSIVE"] | None
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -30,20 +32,49 @@ class SQLiteBackend(Backend):
 
     Args:
         path: database file path, or ":memory:" for in-memory (default)
+        timeout: how many seconds the connection should wait before raising
+            an exception, if the database is locked by another connection
+        detect_types: control whether and how data types not natively supported
+            by sqlite are looked up to be converted to python types
+        isolation_level: control legacy transaction handling behavior.
+            can be "DEFERRED", "IMMEDIATE", "EXCLUSIVE", or None for autocommit
+        check_same_thread: if True, only the creating thread may use the connection
+        cached_statements: number of statements that sqlite should internally cache
+        uri: if True, path is interpreted as a URI with a file path and optional
+            query string
 
     Example:
         ```python
-        # file-based
-        backend = SQLiteBackend("/path/to/db.sqlite")
+        # file-based with custom timeout
+        backend = SQLiteBackend("/path/to/db.sqlite", timeout=10.0)
 
         # in-memory (default)
         backend = SQLiteBackend()
+
+        # with immediate transactions
+        backend = SQLiteBackend("/path/to/db.sqlite", isolation_level="IMMEDIATE")
         ```
 
     """
 
-    def __init__(self, path: str = ":memory:") -> None:
+    def __init__(
+        self,
+        path: str = ":memory:",
+        *,
+        timeout: float = 5.0,
+        detect_types: int = 0,
+        isolation_level: IsolationLevel = "DEFERRED",
+        check_same_thread: bool = False,
+        cached_statements: int = 128,
+        uri: bool = False,
+    ) -> None:
         self.path = path
+        self.timeout = timeout
+        self.detect_types = detect_types
+        self.isolation_level = isolation_level
+        self.check_same_thread = check_same_thread
+        self.cached_statements = cached_statements
+        self.uri = uri
         self._conn: sqlite3.Connection | None = None
         self._initialized = False
         self._init_lock = threading.Lock()
@@ -52,7 +83,15 @@ class SQLiteBackend(Backend):
         with self._init_lock:
             if self._initialized:
                 return
-            self._conn = sqlite3.connect(self.path, check_same_thread=False)
+            self._conn = sqlite3.connect(
+                self.path,
+                timeout=self.timeout,
+                detect_types=self.detect_types,
+                isolation_level=self.isolation_level,
+                check_same_thread=self.check_same_thread,
+                cached_statements=self.cached_statements,
+                uri=self.uri,
+            )
             self._init_schema()
             self._initialized = True
 

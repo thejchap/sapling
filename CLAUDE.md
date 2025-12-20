@@ -12,3 +12,5 @@ sqlite. it strives to be very simple
 - run tests to validate your changes
 - DO NOT ignore lint errors in lines or type errors.
   if you get stumped, pause and ask how to proceed
+- when making changes, be sure to add examples to docstrings and
+  re-generate docs where relevant
