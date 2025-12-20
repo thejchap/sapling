@@ -4,6 +4,8 @@ from typing import TYPE_CHECKING
 
 from pydantic import BaseModel, ConfigDict
 
+from sapling.backends.sqlite import SQLiteBackend
+
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
     from contextlib import AbstractContextManager
@@ -92,9 +94,7 @@ class Database:
     def __init__(
         self, backend: Backend | None = None, *, initialize: bool = True
     ) -> None:
-        from sapling.backends.sqlite import SQLiteBackend  # noqa: PLC0415
-
-        self._backend = backend if backend is not None else SQLiteBackend()
+        self._backend = backend or SQLiteBackend()
         if initialize:
             self._backend.initialize()
 

@@ -5,7 +5,17 @@
 
 ## overview
 
-TODO
+simple persistence for pydantic models. fully typed with excellent ide support.
+
+**features:**
+
+- **fully typed** - complete type safety with ide autocomplete and type checking
+- **zero setup** - works out of the box with no configuration
+- **pydantic native** - designed specifically for pydantic models
+- **fastapi ready** - seamless dependency injection for request-scoped transactions
+- **sqlite backed** - solid, battle-tested storage
+
+[📖 documentation](https://thejchap.github.io/sapling/)
 
 ## development
 
@@ -23,10 +33,10 @@ uv run ruff format
 
 ## burndown
 
-- [ ] mkdocs
-- [ ] mkdocstrings
-- [ ] mdformat ruff
-- [ ] pre-commit <https://github.com/pre-commit/pre-commit>
+- [x] mkdocs
+- [x] mkdocstrings
+- [x] mdformat ruff
+- [x] pre-commit <https://github.com/pre-commit/pre-commit>
 
 ## design
 

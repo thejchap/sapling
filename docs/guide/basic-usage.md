@@ -76,6 +76,50 @@ doc.model_class  # fully qualified class name
 
 this means your pydantic models don't need database-specific fields like `id` or `created_at`.
 
+## type safety and ide support
+
+sapling uses python's generic type system to preserve exact types through all operations. your ide and type checker understand what you're working with at every step.
+
+```python
+from sapling import Database
+
+
+class User(BaseModel):
+    name: str
+    email: str
+
+
+db = Database()
+
+# get() returns Document[User] | None
+doc = db.get(User, "user_1")
+
+# type checker knows doc.model is User
+if doc:
+    # ide autocomplete works on doc.model
+    print(doc.model.name)  # ✓ autocomplete shows: name, email
+    print(doc.model.invalid_field)  # ✗ type error!
+
+# fetch() returns Document[User] (no None)
+user_doc = db.fetch(User, "user_1")
+print(user_doc.model.email)  # type checker knows this exists
+
+# all() returns list[Document[User]]
+users = db.all(User)
+for user_doc in users:
+    # type checker knows user_doc.model is User
+    print(user_doc.model.name)
+```
+
+the type parameter flows through:
+
+- database methods preserve the model type
+- transactions preserve the model type
+- document wrappers are generic over the model type
+- your ide suggests the correct fields on `doc.model`
+
+this works with all python type checkers: pyright, mypy, and ty.
+
 ## crud operations
 
 ### inserting documents
