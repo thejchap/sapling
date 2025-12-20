@@ -9,10 +9,12 @@ sapling works with standard pydantic models - no special decorators or subclassi
 ```python
 from pydantic import BaseModel
 
+
 class User(BaseModel):
     name: str
     email: str
     age: int | None = None
+
 
 class Post(BaseModel):
     title: str
@@ -67,9 +69,9 @@ sapling wraps your pydantic models in a `Document` to preserve model purity:
 from sapling import Document
 
 # Document attributes
-doc.model       # your pydantic model instance
-doc.model_id    # the unique identifier
-doc.model_class # fully qualified class name
+doc.model  # your pydantic model instance
+doc.model_id  # the unique identifier
+doc.model_class  # fully qualified class name
 ```
 
 this means your pydantic models don't need database-specific fields like `id` or `created_at`.
@@ -100,10 +102,12 @@ txn.put(User, "alice", user)
 
 # ulids for sortable, unique ids
 from ulid import ULID
+
 txn.put(User, str(ULID()), user)
 
 # uuids
 import uuid
+
 txn.put(User, str(uuid.uuid4()), user)
 
 # composite keys as strings
@@ -187,8 +191,8 @@ with db.transaction() as txn:
     txn.put(Post, "post_2", Post(title="goodbye", content="world", author_id="user_1"))
 
     # query by model class
-    users = txn.all(User)    # returns 2 users
-    posts = txn.all(Post)    # returns 2 posts
+    users = txn.all(User)  # returns 2 users
+    posts = txn.all(Post)  # returns 2 posts
 ```
 
 model classes are isolated by their class name, so `User` and `Post` documents are stored separately even with the same `model_id`.

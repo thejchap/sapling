@@ -8,9 +8,11 @@ get up and running with sapling in minutes.
 from pydantic import BaseModel
 from sapling import Database
 
+
 class User(BaseModel):
     name: str
     email: str
+
 
 # create database (uses in-memory sqlite by default)
 db = Database()
@@ -39,10 +41,10 @@ with db.transaction() as txn:
 let's break down what's happening:
 
 1. **database creation**: `Database()` creates an in-memory sqlite database with no configuration needed
-2. **transactions**: the `with db.transaction()` context manager ensures your operations are atomic
-3. **document wrapper**: `txn.put()` wraps your pydantic model in a `Document` that includes metadata like `model_id`
-4. **model_id as primary key**: you choose the unique identifier for each document
-5. **get vs fetch**: `get()` returns `None` if not found, `fetch()` raises `NotFoundError`
+1. **transactions**: the `with db.transaction()` context manager ensures your operations are atomic
+1. **document wrapper**: `txn.put()` wraps your pydantic model in a `Document` that includes metadata like `model_id`
+1. **model_id as primary key**: you choose the unique identifier for each document
+1. **get vs fetch**: `get()` returns `None` if not found, `fetch()` raises `NotFoundError`
 
 ## file-based storage
 

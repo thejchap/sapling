@@ -23,6 +23,7 @@ db = Database()
 ```
 
 **characteristics:**
+
 - data stored in memory
 - fast performance
 - data lost when process ends
@@ -38,6 +39,7 @@ db = Database(backend=SQLiteBackend("/path/to/database.sqlite"))
 ```
 
 **characteristics:**
+
 - data persists to disk
 - survives process restarts
 - acid guarantees
@@ -79,12 +81,14 @@ db = Database(backend=MemoryBackend())
 ```
 
 **characteristics:**
+
 - no persistence (data lost on exit)
 - pure python (no sqlite dependency)
 - fast for small datasets
 - perfect for testing
 
 **use cases:**
+
 - unit tests
 - temporary caching
 - development without file i/o
@@ -157,12 +161,14 @@ from sapling import Database
 
 db = Database(initialize=False)
 
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     # initialize on startup
     db.initialize()
     yield
     # cleanup on shutdown (if needed)
+
 
 app = FastAPI(lifespan=lifespan)
 ```
@@ -174,6 +180,7 @@ to create a custom backend, implement the `Backend` abstract base class:
 ```python
 from sapling.backends.base import Backend
 from sapling import Document
+
 
 class CustomBackend(Backend):
     def initialize(self) -> None:

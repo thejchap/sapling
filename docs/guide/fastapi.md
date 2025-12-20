@@ -22,12 +22,15 @@ from pydantic import BaseModel
 from sapling import Database
 from sapling.backends.base import Backend
 
+
 class User(BaseModel):
     name: str
     email: str
 
+
 # create database (deferred initialization for lifespan control)
 db = Database(initialize=False)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -36,7 +39,9 @@ async def lifespan(app: FastAPI):
     yield
     # cleanup on shutdown if needed
 
+
 app = FastAPI(lifespan=lifespan)
+
 
 @app.post("/users/{user_id}")
 def create_user(
@@ -46,6 +51,7 @@ def create_user(
 ):
     doc = txn.put(User, user_id, user)
     return {"id": doc.model_id, "user": doc.model.model_dump()}
+
 
 @app.get("/users/{user_id}")
 def get_user(
@@ -65,6 +71,7 @@ txn: Annotated[Backend, Depends(db.transaction_dependency)]
 ```
 
 **what it does:**
+
 - opens a transaction at the start of the request
 - yields the backend instance for crud operations
 - commits the transaction on successful response
@@ -90,6 +97,7 @@ def create_user(
 ```python
 from sapling.errors import NotFoundError
 from fastapi import HTTPException
+
 
 @app.get("/users/{user_id}")
 def get_user(
@@ -147,9 +155,11 @@ sapling exceptions can be caught and converted to http responses:
 from fastapi import HTTPException
 from sapling.errors import NotFoundError, SaplingError
 
+
 @app.exception_handler(NotFoundError)
 def handle_not_found(request, exc):
     raise HTTPException(status_code=404, detail="resource not found")
+
 
 @app.exception_handler(SaplingError)
 def handle_sapling_error(request, exc):
@@ -187,10 +197,8 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from sapling import Database, SQLiteBackend
 
-db = Database(
-    backend=SQLiteBackend("/app/data/db.sqlite"),
-    initialize=False
-)
+db = Database(backend=SQLiteBackend("/app/data/db.sqlite"), initialize=False)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -202,6 +210,7 @@ async def lifespan(app: FastAPI):
     # shutdown: cleanup if needed
     # (sqlite connections are closed automatically)
 
+
 app = FastAPI(lifespan=lifespan)
 ```
 
@@ -210,15 +219,10 @@ app = FastAPI(lifespan=lifespan)
 use multiple database instances for different data domains:
 
 ```python
-users_db = Database(
-    backend=SQLiteBackend("/app/data/users.sqlite"),
-    initialize=False
-)
+users_db = Database(backend=SQLiteBackend("/app/data/users.sqlite"), initialize=False)
 
-posts_db = Database(
-    backend=SQLiteBackend("/app/data/posts.sqlite"),
-    initialize=False
-)
+posts_db = Database(backend=SQLiteBackend("/app/data/posts.sqlite"), initialize=False)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -226,7 +230,9 @@ async def lifespan(app: FastAPI):
     posts_db.initialize()
     yield
 
+
 app = FastAPI(lifespan=lifespan)
+
 
 @app.get("/users/{user_id}")
 def get_user(
@@ -235,6 +241,7 @@ def get_user(
 ):
     doc = txn.fetch(User, user_id)
     return doc.model.model_dump()
+
 
 @app.get("/posts/{post_id}")
 def get_post(
@@ -257,18 +264,23 @@ from sapling import Database
 from sapling.backends.base import Backend
 from sapling.errors import NotFoundError
 
+
 class User(BaseModel):
     name: str
     email: str
 
+
 db = Database(initialize=False)
+
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     db.initialize()
     yield
 
+
 app = FastAPI(lifespan=lifespan)
+
 
 @app.post("/users/{user_id}", status_code=status.HTTP_201_CREATED)
 def create_user(
@@ -278,6 +290,7 @@ def create_user(
 ):
     doc = txn.put(User, user_id, user)
     return {"id": doc.model_id, "user": doc.model.model_dump()}
+
 
 @app.get("/users/{user_id}")
 def get_user(
@@ -290,6 +303,7 @@ def get_user(
     except NotFoundError:
         raise HTTPException(status_code=404, detail="user not found")
 
+
 @app.put("/users/{user_id}")
 def update_user(
     user_id: str,
@@ -299,12 +313,14 @@ def update_user(
     doc = txn.put(User, user_id, user)
     return {"id": doc.model_id, "user": doc.model.model_dump()}
 
+
 @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
 def delete_user(
     user_id: str,
     txn: Annotated[Backend, Depends(db.transaction_dependency)],
 ):
     txn.delete(User, user_id)
+
 
 @app.get("/users")
 def list_users(

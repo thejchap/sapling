@@ -12,9 +12,9 @@ from sapling import Database
 db = Database()
 
 # each operation is automatically wrapped in a transaction
-db.put(User, "user_1", user)       # commits immediately
-maybe_user = db.get(User, "user_1") # commits immediately
-db.delete(User, "user_1")           # commits immediately
+db.put(User, "user_1", user)  # commits immediately
+maybe_user = db.get(User, "user_1")  # commits immediately
+db.delete(User, "user_1")  # commits immediately
 ```
 
 ## explicit transactions
@@ -170,6 +170,7 @@ from sapling.backends.base import Backend
 
 app = FastAPI()
 db = Database()
+
 
 @app.post("/users/{user_id}")
 def create_user(

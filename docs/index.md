@@ -21,9 +21,11 @@ sapling provides zero-setup data persistence for pydantic models built on sqlite
 from pydantic import BaseModel
 from sapling import Database
 
+
 class User(BaseModel):
     name: str
     email: str
+
 
 db = Database()
 
