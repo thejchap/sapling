@@ -194,3 +194,7 @@ class Database:
     def connection(self) -> Generator[Connection]:
         with Connection() as conn:
             yield conn
+
+    def transaction(self) -> Generator[Transaction]:
+        with self.connection() as conn, conn.transaction() as txn:
+            yield txn

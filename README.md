@@ -1,5 +1,6 @@
 # sapling
 
+[![ci](https://github.com/thejchap/sapling/actions/workflows/ci.yml/badge.svg)](https://github.com/thejchap/sapling/actions/workflows/ci.yml)
 [![CodSpeed](https://img.shields.io/endpoint?url=https://codspeed.io/badge.json)](https://codspeed.io/gh/thejchap/sapling)
 
 ## overview
@@ -63,3 +64,4 @@ uv run ruff format
 - <https://www.prisma.io/client>
 - <https://docs.python.org/3/library/typing.html>
 - <https://docs.pydantic.dev/2.12/>
+- <https://fastapi.tiangolo.com/tutorial/>
