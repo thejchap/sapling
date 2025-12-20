@@ -99,7 +99,7 @@ LIMIT 1
             raise ValueError(_CONNECTION_NOT_INITIALIZED)
         cursor = self._conn.execute(
             """\
-INSERT INTO document VALUES (
+INSERT OR REPLACE INTO document VALUES (
     :model_class,
     :model_id,
     :model
