@@ -14,14 +14,14 @@ if TYPE_CHECKING:
 
 
 class MemoryBackend(Backend):
-    """memory backend - stores documents in memory using a dict."""
-
     def __init__(self) -> None:
         self._store: dict[tuple[str, str], dict] = {}
 
+    def initialize(self) -> None:
+        pass
+
     @contextmanager
     def transaction(self) -> Generator[Self]:
-        """no-op transaction for memory backend - just yields self."""
         yield self
 
     def get[T: BaseModel](

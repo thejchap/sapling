@@ -103,3 +103,36 @@ def test_memory_backend():
 
         with pytest.raises(NotFoundError):
             txn.fetch(Hello, "test")
+
+
+def test_deferred_initialization():
+    backend = SQLiteBackend()
+    db = Database(backend=backend, initialize=False)
+
+    db.initialize()
+
+    with db.transaction() as txn:
+        txn.put(Hello, "test", Hello(hello="world"))
+        doc = txn.fetch(Hello, "test")
+        assert doc.model.hello == "world"
+
+
+def test_idempotent_initialization():
+    backend = SQLiteBackend()
+    db = Database(backend=backend, initialize=False)
+
+    db.initialize()
+    db.initialize()
+    db.initialize()
+
+    with db.transaction() as txn:
+        txn.put(Hello, "test", Hello(hello="world"))
+
+
+def test_uninitialized_error():
+    backend = SQLiteBackend()
+    db = Database(backend=backend, initialize=False)
+
+    with pytest.raises(ValueError, match="not initialized"):  # noqa: SIM117
+        with db.transaction() as txn:
+            txn.put(Hello, "test", Hello(hello="world"))

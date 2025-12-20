@@ -62,10 +62,17 @@ class Database:
     provides convenient api for crud operations with automatic transactions
     """
 
-    def __init__(self, backend: Backend | None = None) -> None:
+    def __init__(
+        self, backend: Backend | None = None, *, initialize: bool = True
+    ) -> None:
         from sapling.backends.sqlite import SQLiteBackend  # noqa: PLC0415
 
         self._backend = backend if backend is not None else SQLiteBackend()
+        if initialize:
+            self._backend.initialize()
+
+    def initialize(self) -> None:
+        self._backend.initialize()
 
     def transaction(self) -> _TransactionWrapper:
         """

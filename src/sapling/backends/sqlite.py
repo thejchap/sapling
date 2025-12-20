@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import logging
 import sqlite3
+import threading
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Any, Self
 
@@ -21,24 +22,28 @@ _CONNECTION_NOT_INITIALIZED = "Connection not initialized"
 
 
 class SQLiteBackend(Backend):
-    """sqlite backend - stores documents in sqlite database."""
-
     def __init__(self, path: str = ":memory:") -> None:
         self.path = path
         self._conn: sqlite3.Connection | None = None
+        self._initialized = False
+        self._init_lock = threading.Lock()
+
+    def initialize(self) -> None:
+        with self._init_lock:
+            if self._initialized:
+                return
+            self._conn = sqlite3.connect(self.path, check_same_thread=False)
+            self._init_schema()
+            self._initialized = True
 
     @contextmanager
     def transaction(self) -> Generator[Self]:
-        """Open connection, start transaction, yield self."""
         if not self._conn:
-            self._conn = sqlite3.connect(self.path)
-            self._init_schema()
-
+            raise ValueError(_CONNECTION_NOT_INITIALIZED)
         with self._conn:
             yield self
 
     def _init_schema(self) -> None:
-        """Create tables if they don't exist."""
         if self._conn is None:
             raise ValueError(_CONNECTION_NOT_INITIALIZED)
         self._conn.set_trace_callback(LOGGER.debug)
@@ -57,7 +62,6 @@ CREATE TABLE IF NOT EXISTS document (
     def _row_to_document[T: BaseModel](
         self, model_class: type[T], cursor: sqlite3.Cursor, row: tuple[Any]
     ) -> Document[T]:
-        """Convert sqlite row to Document."""
         fields = [column[0] for column in cursor.description]
         raw = dict(zip(fields, row, strict=False))
         model = model_class.model_validate_json(raw["model"])
