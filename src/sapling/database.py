@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from pydantic import BaseModel, ConfigDict
+from pydantic import BaseModel
+
+from sapling.backends.sqlite import SQLiteBackend
 
 if TYPE_CHECKING:
     from collections.abc import Generator, Iterator
@@ -10,6 +12,7 @@ if TYPE_CHECKING:
     from types import TracebackType
 
     from sapling.backends.base import Backend
+    from sapling.document import Document
 
 
 class _TransactionWrapper:
@@ -41,34 +44,6 @@ class _TransactionWrapper:
             yield txn
 
 
-class Document[T: BaseModel](BaseModel):
-    """
-    container for persisted pydantic models.
-
-    documents wrap model data with persistence metadata, keeping pydantic
-    models pure (no database-specific fields).
-
-    Attributes:
-        model: the pydantic model instance
-        model_id: unique identifier
-        model_class: fully qualified model class name
-
-    Example:
-        ```python
-        user = User(name="alice", email="alice@example.com")
-        doc = txn.put(User, "user_1", user)
-        print(doc.model_id)  # "user_1"
-        print(doc.model.name)  # "alice"
-        ```
-
-    """
-
-    model_config = ConfigDict(frozen=True)
-    model: T
-    model_id: str
-    model_class: str
-
-
 class Database:
     """
     main interface for sapling persistence.
@@ -92,8 +67,6 @@ class Database:
     def __init__(
         self, backend: Backend | None = None, *, initialize: bool = True
     ) -> None:
-        from sapling.backends.sqlite import SQLiteBackend
-
         self._backend = backend or SQLiteBackend()
         if initialize:
             self._backend.initialize()

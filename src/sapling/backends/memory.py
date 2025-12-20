@@ -4,7 +4,7 @@ from contextlib import contextmanager
 from typing import TYPE_CHECKING, Self
 
 from sapling.backends.base import Backend
-from sapling.database import Document
+from sapling.document import Document
 from sapling.errors import NotFoundError
 
 if TYPE_CHECKING:
