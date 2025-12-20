@@ -6,8 +6,7 @@ from contextlib import contextmanager
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Self
 
-from pydantic import BaseModel, ConfigDict, Field
-from ulid import ULID
+from pydantic import BaseModel, ConfigDict
 
 from sapling.errors import NotFoundError
 
@@ -28,7 +27,7 @@ class Document[T: BaseModel](BaseModel):
 
     model_config = ConfigDict(frozen=True)
     model: T
-    model_id: ULID = Field(default_factory=ULID)
+    model_id: str
     model_class: str
 
     @classmethod
@@ -73,7 +72,6 @@ class Transaction:
         model_id: str,
         model: T,
     ) -> Document[T]:
-        model_id = str(ULID.parse(model_id))
         conn = self.sqlite3_transaction
         conn.row_factory = Document[T].row_factory(model_class)
         res = conn.execute(
@@ -101,7 +99,6 @@ INSERT INTO document VALUES (
         model_class: type[T],
         model_id: str,
     ) -> Document[T] | None:
-        model_id = str(ULID.parse(model_id))
         conn = self.sqlite3_transaction
         conn.row_factory = Document[T].row_factory(model_class=model_class)
         res = conn.execute(
