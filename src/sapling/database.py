@@ -202,3 +202,51 @@ class Database:
         """
         with self.transaction() as txn:
             return txn.all(model_class)
+
+    def get_many[T: BaseModel](
+        self, model_class: type[T], model_ids: list[str]
+    ) -> list[Document[T] | None]:
+        """
+        Retrieve multiple documents by ids, preserving order.
+
+        Args:
+            model_class: pydantic model class
+            model_ids: list of document identifiers
+
+        Returns:
+            list of documents (None for missing ids)
+
+        """
+        with self.transaction() as txn:
+            return txn.get_many(model_class, model_ids)
+
+    def delete_many(self, model_class: type[BaseModel], model_ids: list[str]) -> None:
+        """
+        Delete multiple documents by ids.
+
+        idempotent - no error if documents don't exist.
+
+        Args:
+            model_class: pydantic model class
+            model_ids: list of document identifiers
+
+        """
+        with self.transaction() as txn:
+            return txn.delete_many(model_class, model_ids)
+
+    def put_many[T: BaseModel](
+        self, model_class: type[T], models: list[tuple[str, T]]
+    ) -> list[Document[T]]:
+        """
+        Insert or update multiple documents.
+
+        Args:
+            model_class: pydantic model class
+            models: list of (model_id, model) tuples
+
+        Returns:
+            list of persisted documents
+
+        """
+        with self.transaction() as txn:
+            return txn.put_many(model_class, models)

@@ -36,6 +36,21 @@ class Backend(ABC):
     def all[T: BaseModel](self, model_class: type[T]) -> list[Document[T]]: ...
 
     @abstractmethod
+    def get_many[T: BaseModel](
+        self, model_class: type[T], model_ids: list[str]
+    ) -> list[Document[T] | None]: ...
+
+    @abstractmethod
+    def delete_many(
+        self, model_class: type[BaseModel], model_ids: list[str]
+    ) -> None: ...
+
+    @abstractmethod
+    def put_many[T: BaseModel](
+        self, model_class: type[T], models: list[tuple[str, T]]
+    ) -> list[Document[T]]: ...
+
+    @abstractmethod
     def initialize(self) -> None: ...
 
     @abstractmethod

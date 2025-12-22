@@ -89,3 +89,17 @@ class MemoryBackend(Backend):
                     )
                 )
         return results
+
+    def get_many[T: BaseModel](
+        self, model_class: type[T], model_ids: list[str]
+    ) -> list[Document[T] | None]:
+        return [self.get(model_class, model_id) for model_id in model_ids]
+
+    def delete_many(self, model_class: type[BaseModel], model_ids: list[str]) -> None:
+        for model_id in model_ids:
+            self.delete(model_class, model_id)
+
+    def put_many[T: BaseModel](
+        self, model_class: type[T], models: list[tuple[str, T]]
+    ) -> list[Document[T]]:
+        return [self.put(model_class, model_id, model) for model_id, model in models]

@@ -220,3 +220,74 @@ WHERE
         return [
             self._row_to_document(model_class, cursor, row) for row in cursor.fetchall()
         ]
+
+    def get_many[T: BaseModel](
+        self, model_class: type[T], model_ids: list[str]
+    ) -> list[Document[T] | None]:
+        if not model_ids:
+            return []
+        if self._conn is None:
+            raise ValueError(_CONNECTION_NOT_INITIALIZED)
+        placeholders = ",".join("?" * len(model_ids))
+        cursor = self._conn.execute(
+            f"""\
+SELECT
+    model_class,
+    model_id,
+    model
+FROM document
+WHERE
+    model_class = ?
+    AND model_id IN ({placeholders})
+;
+            """.strip(),
+            [model_class.__name__, *model_ids],
+        )
+        results_dict = {
+            row[1]: self._row_to_document(model_class, cursor, row)
+            for row in cursor.fetchall()
+        }
+        return [results_dict.get(model_id) for model_id in model_ids]
+
+    def delete_many(self, model_class: type[BaseModel], model_ids: list[str]) -> None:
+        if not model_ids:
+            return
+        if self._conn is None:
+            raise ValueError(_CONNECTION_NOT_INITIALIZED)
+        placeholders = ",".join("?" * len(model_ids))
+        self._conn.execute(
+            f"""\
+DELETE
+FROM document
+WHERE
+    model_class = ?
+    AND model_id IN ({placeholders})
+;
+            """.strip(),
+            [model_class.__name__, *model_ids],
+        )
+
+    def put_many[T: BaseModel](
+        self, model_class: type[T], models: list[tuple[str, T]]
+    ) -> list[Document[T]]:
+        if not models:
+            return []
+        if self._conn is None:
+            raise ValueError(_CONNECTION_NOT_INITIALIZED)
+        values_placeholders = ",".join("(?, ?, ?)" * len(models))
+        flat_values = [
+            val
+            for model_id, model in models
+            for val in (model_class.__name__, model_id, model.model_dump_json())
+        ]
+        cursor = self._conn.execute(
+            f"""\
+INSERT OR REPLACE INTO document VALUES {values_placeholders}
+RETURNING model_class, model_id, model
+;
+            """.strip(),
+            flat_values,
+        )
+        return [
+            self._row_to_document(model_class, cursor, row) for row in cursor.fetchall()
+        ]
