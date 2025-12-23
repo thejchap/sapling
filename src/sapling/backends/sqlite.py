@@ -5,18 +5,17 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Literal, Self
+from typing import TYPE_CHECKING, Any, Self
 
 from pydantic import BaseModel
 
 from sapling.backends.base import Backend
 from sapling.document import Document
 from sapling.errors import NotFoundError
+from sapling.settings import IsolationLevel, get_sapling_settings
 
 if TYPE_CHECKING:
     from collections.abc import Generator
-
-type IsolationLevel = Literal["DEFERRED", "IMMEDIATE", "EXCLUSIVE"] | None
 
 logging.basicConfig(level=logging.INFO)
 LOGGER = logging.getLogger(__name__)
@@ -63,22 +62,35 @@ class SQLiteBackend(Backend):
 
     def __init__(
         self,
-        path: str = ":memory:",
+        path: str | None = None,
         *,
-        timeout: float = 5.0,
-        detect_types: int = 0,
-        isolation_level: IsolationLevel = "DEFERRED",
-        check_same_thread: bool = False,
-        cached_statements: int = 128,
-        uri: bool = False,
+        timeout: float | None = None,
+        detect_types: int | None = None,
+        isolation_level: IsolationLevel | None = None,
+        check_same_thread: bool | None = None,
+        cached_statements: int | None = None,
+        uri: bool | None = None,
     ) -> None:
-        self.path = path
-        self.timeout = timeout
-        self.detect_types = detect_types
-        self.isolation_level = isolation_level
-        self.check_same_thread = check_same_thread
-        self.cached_statements = cached_statements
-        self.uri = uri
+        settings = get_sapling_settings().sqlite
+        self.path = path if path is not None else settings.path
+        self.timeout = timeout if timeout is not None else settings.timeout
+        self.detect_types = (
+            detect_types if detect_types is not None else settings.detect_types
+        )
+        self.isolation_level = (
+            isolation_level if isolation_level is not None else settings.isolation_level
+        )
+        self.check_same_thread = (
+            check_same_thread
+            if check_same_thread is not None
+            else settings.check_same_thread
+        )
+        self.cached_statements = (
+            cached_statements
+            if cached_statements is not None
+            else settings.cached_statements
+        )
+        self.uri = uri if uri is not None else settings.uri
         self._conn: sqlite3.Connection | None = None
         self._initialized = False
         self._init_lock = threading.Lock()
