@@ -4,6 +4,7 @@ import logging
 import sqlite3
 import threading
 from contextlib import contextmanager
+from pathlib import Path
 from typing import TYPE_CHECKING, Any, Literal, Self
 
 from pydantic import BaseModel
@@ -83,6 +84,9 @@ class SQLiteBackend(Backend):
         with self._init_lock:
             if self._initialized:
                 return
+            if self.path != ":memory:":
+                db_dir = Path(self.path).parent
+                db_dir.mkdir(parents=True, exist_ok=True)
             self._conn = sqlite3.connect(
                 self.path,
                 timeout=self.timeout,
