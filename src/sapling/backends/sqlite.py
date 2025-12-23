@@ -39,7 +39,10 @@ class SQLiteBackend(Backend):
             by sqlite are looked up to be converted to python types
         isolation_level: control legacy transaction handling behavior.
             can be "DEFERRED", "IMMEDIATE", "EXCLUSIVE", or None for autocommit
-        check_same_thread: if True, only the creating thread may use the connection
+        check_same_thread: if True, only the creating thread may use the connection.
+            defaults to False to support web frameworks like fastapi where requests
+            are handled in different threads. see:
+            https://fastapi.tiangolo.com/tutorial/sql-databases/#create-models
         cached_statements: number of statements that sqlite should internally cache
         uri: if True, path is interpreted as a URI with a file path and optional
             query string
