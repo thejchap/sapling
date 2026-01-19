@@ -1,28 +1,51 @@
 from functools import cache
 from typing import ClassVar, Literal
 
-from pydantic import BaseModel
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 type IsolationLevel = Literal["DEFERRED", "IMMEDIATE", "EXCLUSIVE"] | None
 
 
-class SQLiteSettings(BaseModel):
-    path: str = ":memory:"
-    timeout: float = 5.0
-    detect_types: int = 0
-    isolation_level: IsolationLevel = "DEFERRED"
-    check_same_thread: bool = False
-    cached_statements: int = 128
-    uri: bool = False
-
-
 class SaplingSettings(BaseSettings):
+    """
+    sapling configuration settings.
+
+    all settings can be configured via environment variables with
+    the SAPLING_ prefix (e.g., SAPLING_SQLITE_PATH, SAPLING_SQLITE_TIMEOUT).
+    """
+
     model_config: ClassVar[SettingsConfigDict] = SettingsConfigDict(
         env_prefix="SAPLING_",
-        env_nested_delimiter="_",
     )
-    sqlite: SQLiteSettings = SQLiteSettings()
+    sqlite_path: str = Field(
+        default=":memory:",
+        description='database file path, or ":memory:" for in-memory',
+    )
+    sqlite_timeout: float = Field(
+        default=5.0,
+        description="seconds to wait before raising exception if database is locked",
+    )
+    sqlite_detect_types: int = Field(
+        default=0,
+        description="control type detection for non-native sqlite types",
+    )
+    sqlite_isolation_level: IsolationLevel = Field(
+        default="DEFERRED",
+        description="transaction isolation: DEFERRED, IMMEDIATE, EXCLUSIVE, or None",
+    )
+    sqlite_check_same_thread: bool = Field(
+        default=False,
+        description="if True, only creating thread may use connection",
+    )
+    sqlite_cached_statements: int = Field(
+        default=128,
+        description="number of statements to cache internally",
+    )
+    sqlite_uri: bool = Field(
+        default=False,
+        description="if True, interpret path as URI with query string",
+    )
 
 
 @cache

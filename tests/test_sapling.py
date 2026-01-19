@@ -3,7 +3,7 @@ from pathlib import Path
 import pytest
 from pydantic import BaseModel
 
-from sapling import Database, MemoryBackend, SQLiteBackend
+from sapling import Database, MemoryBackend, SaplingSettings, SQLiteBackend
 from sapling.errors import NotFoundError
 
 
@@ -57,13 +57,15 @@ def test_sqlite_backend_memory():
 
 def test_sqlite_backend_file(tmp_path: Path) -> None:
     db_path = tmp_path / "test.db"
-    backend = SQLiteBackend(path=str(db_path))
+    settings = SaplingSettings(sqlite_path=str(db_path))
+    backend = SQLiteBackend(settings=settings)
     db = Database(backend=backend)
 
     with db.transaction() as txn:
         txn.put(Hello, "persistent", Hello(hello="saved"))
 
-    db2 = Database(backend=SQLiteBackend(path=str(db_path)))
+    settings2 = SaplingSettings(sqlite_path=str(db_path))
+    db2 = Database(backend=SQLiteBackend(settings=settings2))
     with db2.transaction() as txn:
         doc = txn.fetch(Hello, "persistent")
         assert doc.model.hello == "saved"

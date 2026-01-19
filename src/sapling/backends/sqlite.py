@@ -5,14 +5,14 @@ import sqlite3
 import threading
 from contextlib import contextmanager
 from pathlib import Path
-from typing import TYPE_CHECKING, Any, Self
+from typing import TYPE_CHECKING, Any, Self, override
 
 from pydantic import BaseModel
 
 from sapling.backends.base import Backend
 from sapling.document import Document
 from sapling.errors import NotFoundError
-from sapling.settings import IsolationLevel, get_sapling_settings
+from sapling.settings import IsolationLevel, SaplingSettings, get_sapling_settings
 
 if TYPE_CHECKING:
     from collections.abc import Generator
@@ -31,70 +31,40 @@ class SQLiteBackend(Backend):
     supports both file-based and in-memory modes.
 
     Args:
-        path: database file path, or ":memory:" for in-memory (default)
-        timeout: how many seconds the connection should wait before raising
-            an exception, if the database is locked by another connection
-        detect_types: control whether and how data types not natively supported
-            by sqlite are looked up to be converted to python types
-        isolation_level: control legacy transaction handling behavior.
-            can be "DEFERRED", "IMMEDIATE", "EXCLUSIVE", or None for autocommit
-        check_same_thread: if True, only the creating thread may use the connection.
-            defaults to False to support web frameworks like fastapi where requests
-            are handled in different threads. see:
-            https://fastapi.tiangolo.com/tutorial/sql-databases/#create-models
-        cached_statements: number of statements that sqlite should internally cache
-        uri: if True, path is interpreted as a URI with a file path and optional
-            query string
+        settings: sapling settings instance. if not provided, uses global settings
+            from environment variables.
 
     Example:
         ```python
-        # file-based with custom timeout
-        backend = SQLiteBackend("/path/to/db.sqlite", timeout=10.0)
-
-        # in-memory (default)
+        # use global settings from environment
         backend = SQLiteBackend()
 
-        # with immediate transactions
-        backend = SQLiteBackend("/path/to/db.sqlite", isolation_level="IMMEDIATE")
+        # use custom settings
+        from sapling import SaplingSettings
+
+        settings = SaplingSettings(
+            sqlite_path="/path/to/db.sqlite",
+            sqlite_timeout=10.0,
+        )
+        backend = SQLiteBackend(settings=settings)
         ```
 
     """
 
-    def __init__(
-        self,
-        path: str | None = None,
-        *,
-        timeout: float | None = None,
-        detect_types: int | None = None,
-        isolation_level: IsolationLevel | None = None,
-        check_same_thread: bool | None = None,
-        cached_statements: int | None = None,
-        uri: bool | None = None,
-    ) -> None:
-        settings = get_sapling_settings().sqlite
-        self.path = path if path is not None else settings.path
-        self.timeout = timeout if timeout is not None else settings.timeout
-        self.detect_types = (
-            detect_types if detect_types is not None else settings.detect_types
-        )
-        self.isolation_level = (
-            isolation_level if isolation_level is not None else settings.isolation_level
-        )
-        self.check_same_thread = (
-            check_same_thread
-            if check_same_thread is not None
-            else settings.check_same_thread
-        )
-        self.cached_statements = (
-            cached_statements
-            if cached_statements is not None
-            else settings.cached_statements
-        )
-        self.uri = uri if uri is not None else settings.uri
+    def __init__(self, settings: SaplingSettings | None = None) -> None:
+        settings = settings if settings is not None else get_sapling_settings()
+        self.path: str = settings.sqlite_path
+        self.timeout: float = settings.sqlite_timeout
+        self.detect_types: int = settings.sqlite_detect_types
+        self.isolation_level: IsolationLevel = settings.sqlite_isolation_level
+        self.check_same_thread: bool = settings.sqlite_check_same_thread
+        self.cached_statements: int = settings.sqlite_cached_statements
+        self.uri: bool = settings.sqlite_uri
         self._conn: sqlite3.Connection | None = None
-        self._initialized = False
-        self._init_lock = threading.Lock()
+        self._initialized: bool = False
+        self._init_lock: threading.Lock = threading.Lock()
 
+    @override
     def initialize(self) -> None:
         with self._init_lock:
             if self._initialized:

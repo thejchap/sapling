@@ -23,7 +23,7 @@ class _TransactionWrapper:
     """
 
     def __init__(self, backend_transaction_cm: AbstractContextManager[Backend]) -> None:
-        self._backend_txn_cm = backend_transaction_cm
+        self._backend_txn_cm: AbstractContextManager[Backend] = backend_transaction_cm
 
     def __enter__(self) -> Backend:
         return self._backend_txn_cm.__enter__()
@@ -48,26 +48,18 @@ class Database:
     """
     main interface for sapling persistence.
 
-    provides crud operations with automatic transaction management.
-    delegates to backend implementations for storage.
+    provides crud operations with transaction management.
 
     Args:
         backend: storage backend (defaults to SQLiteBackend)
         initialize: whether to initialize backend immediately
-
-    Example:
-        ```python
-        db = Database()
-        user = User(name="alice", email="alice@example.com")
-        doc = db.put(User, "user_1", user)
-        ```
 
     """
 
     def __init__(
         self, backend: Backend | None = None, *, initialize: bool = True
     ) -> None:
-        self._backend = backend or SQLiteBackend()
+        self._backend: Backend = backend or SQLiteBackend()
         if initialize:
             self._backend.initialize()
 

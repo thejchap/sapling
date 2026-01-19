@@ -6,23 +6,27 @@ site_url: https://github.com/thejchap/sapling
 repo_url: https://github.com/thejchap/sapling
 repo_name: thejchap/sapling
 
+watch:
+  - docs
+  - src
+
 theme:
   name: material
   palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
-      primary: green
-      accent: light-green
       toggle:
         icon: material/brightness-7
-        name: switch to dark mode
+        name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
-      primary: green
-      accent: light-green
       toggle:
         icon: material/brightness-4
-        name: switch to light mode
+        name: Switch to system preference
   features:
     - navigation.instant
     - navigation.sections
@@ -39,17 +43,9 @@ plugins:
       handlers:
         python:
           options:
-            docstring_style: google
-            show_source: true
-            show_root_heading: true
-            show_root_full_path: false
-            show_signature_annotations: true
-            separate_signature: true
-            merge_init_into_class: true
-            show_if_no_docstring: false
-            members_order: source
-            filters:
-              - "!^_"
+            extensions:
+              - griffe_pydantic:
+                  schema: true
 
 markdown_extensions:
   - admonition
@@ -65,16 +61,4 @@ markdown_extensions:
   - md_in_html
 
 nav:
-  - home: index.md
-  - getting started:
-      - installation: getting-started/installation.md
-      - quickstart: getting-started/quickstart.md
-  - user guide:
-      - basic usage: guide/basic-usage.md
-      - transactions: guide/transactions.md
-      - backends: guide/backends.md
-      - fastapi integration: guide/fastapi.md
-  - api reference:
-      - database: api/database.md
-      - backends: api/backends.md
-      - errors: api/errors.md
+  - sapling: index.md

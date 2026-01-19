@@ -19,13 +19,13 @@ class Document[T: BaseModel](BaseModel):
         ```python
         user = User(name="alice", email="alice@example.com")
         doc = txn.put(User, "user_1", user)
-        print(doc.model_id)  # "user_1"
-        print(doc.model.name)  # "alice"
+        reveal_type(doc)  # Document[User]
+        print(document.model.name)  # "alice"
         ```
 
     """
 
-    model_config = ConfigDict(frozen=True)
+    model_config: ConfigDict = ConfigDict(frozen=True)  # pyright: ignore[reportIncompatibleVariableOverride]
     model: T
     model_id: str
     model_class: str
