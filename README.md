@@ -5,7 +5,25 @@
 
 ## overview
 
-simple persistence for pydantic models. fully typed with excellent ide support.
+simple, zero-setup persistence for pydantic models
+
+```python
+from pydantic import BaseModel
+from sapling import Database
+
+
+class User(BaseModel):
+    name: str
+    email: str
+
+
+db = Database()
+
+with db.transaction() as txn:
+    user = User(name="alice", email="alice@example.com")
+    doc = txn.put(User, "123", user)
+    txn.fetch(User, "123")
+```
 
 **features:**
 
@@ -14,5 +32,3 @@ simple persistence for pydantic models. fully typed with excellent ide support.
 - **pydantic native** - designed specifically for pydantic models
 - **fastapi ready** - seamless dependency injection for request-scoped transactions
 - **sqlite backed** - solid, battle-tested storage
-
-[📖 documentation](https://thejchap.github.io/sapling/)
