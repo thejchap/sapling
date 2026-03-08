@@ -1,0 +1,5 @@
+{
+  "python.languageServer": "None",
+  "python.analysis.enablePytestSupport": false,
+  "python.testing.pytestEnabled": false
+}
