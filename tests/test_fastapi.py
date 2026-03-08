@@ -1,10 +1,11 @@
 from collections.abc import Generator
+from contextlib import contextmanager
 from typing import Annotated
 
-import pytest
 from fastapi import Depends, FastAPI, status
 from fastapi.testclient import TestClient
 from pydantic import BaseModel
+from tryke import expect, test
 
 from sapling import Database
 from sapling.backends.base import Backend
@@ -15,8 +16,8 @@ class User(BaseModel):
     email: str
 
 
-@pytest.fixture
-def app():
+@contextmanager
+def _client() -> Generator[TestClient]:
     app = FastAPI(debug=True)
     db = Database()
 
@@ -49,31 +50,32 @@ def app():
         txn.put(User, user_id, User(name="test", email="test@example.com"))
         raise ValueError
 
-    return app
-
-
-@pytest.fixture(name="client")
-def client_fixture(app: FastAPI) -> Generator[TestClient]:
     with TestClient(app, raise_server_exceptions=False) as client:
         yield client
 
 
-def test_create_user(client: TestClient):
-    response = client.post(
-        "/users/user1",
-        json={"name": "alice", "email": "alice@example.com"},
-    )
-    assert response.status_code == status.HTTP_200_OK
-    data = response.json()
-    assert data["id"] == "user1"
-    assert data["user"]["name"] == "alice"
+@test
+def test_create_user():
+    with _client() as client:
+        response = client.post(
+            "/users/user1",
+            json={"name": "alice", "email": "alice@example.com"},
+        )
+        expect(response.status_code).to_equal(status.HTTP_200_OK)
+        data = response.json()
+        expect(data["id"]).to_equal("user1")
+        expect(data["user"]["name"]).to_equal("alice")
 
 
-def test_get_nonexistent_user_raises_not_found(client: TestClient):
-    response = client.get("/users/nonexistent")
-    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+@test
+def test_get_nonexistent_user_raises_not_found():
+    with _client() as client:
+        response = client.get("/users/nonexistent")
+        expect(response.status_code).to_equal(status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
-def test_error_in_route_returns_500(client: TestClient):
-    response = client.get("/users/user3/error")
-    assert response.status_code == status.HTTP_500_INTERNAL_SERVER_ERROR
+@test
+def test_error_in_route_returns_500():
+    with _client() as client:
+        response = client.get("/users/user3/error")
+        expect(response.status_code).to_equal(status.HTTP_500_INTERNAL_SERVER_ERROR)

@@ -6,7 +6,7 @@ TODO
 
 ```bash
 # tests
-uv run pytest
+uvx tryke test
 
 # type check
 uv run ty check

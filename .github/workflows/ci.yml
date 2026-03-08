@@ -31,9 +31,4 @@ jobs:
       - run: uv run mkdocs build --strict
       - name: check mkdocs build matches docstrings
         run: git diff --exit-code site/
-      - run: uv run pytest
-      - name: benchmark
-        uses: CodSpeedHQ/action@v4.4.1
-        with:
-          mode: simulation
-          run: uv run pytest tests/bench_sapling.py --codspeed
+      - run: uvx tryke test

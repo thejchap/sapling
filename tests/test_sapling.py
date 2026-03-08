@@ -1,7 +1,8 @@
+import tempfile
 from pathlib import Path
 
-import pytest
 from pydantic import BaseModel
+from tryke import expect, test
 
 from sapling import Database, MemoryBackend, SaplingSettings, SQLiteBackend
 from sapling.errors import NotFoundError
@@ -11,21 +12,22 @@ class Hello(BaseModel):
     hello: str = "world"
 
 
+@test
 def test_basic():
     db = Database()
     hello = Hello()
     with db.transaction() as txn:
         pk = "hello"
         record = txn.put(Hello, pk, hello)
-        assert record.model_id == pk
+        expect(record.model_id).to_equal(pk)
         maybe_record = txn.get(Hello, pk)
-        assert maybe_record
+        expect(maybe_record).to_be_truthy()
         record = txn.fetch(Hello, pk)
         txn.delete(Hello, pk)
-        with pytest.raises(NotFoundError):
-            txn.fetch(Hello, pk)
+        expect(lambda: txn.fetch(Hello, pk)).to_raise(NotFoundError)
 
 
+@test
 def test_all_method():
     db = Database()
     with db.transaction() as txn:
@@ -34,43 +36,48 @@ def test_all_method():
         txn.put(Hello, "3", Hello(hello="three"))
 
         all_hellos = txn.all(Hello)
-        assert len(all_hellos) == 3
-        assert {h.model_id for h in all_hellos} == {"1", "2", "3"}
-        assert {h.model.hello for h in all_hellos} == {"one", "two", "three"}
+        expect(all_hellos).to_have_length(3)
+        expect({h.model_id for h in all_hellos}).to_equal({"1", "2", "3"})
+        expect({h.model.hello for h in all_hellos}).to_equal({"one", "two", "three"})
 
 
+@test
 def test_all_empty():
     db = Database()
     with db.transaction() as txn:
         all_hellos = txn.all(Hello)
-        assert all_hellos == []
+        expect(all_hellos).to_equal([])
 
 
+@test
 def test_sqlite_backend_memory():
     backend = SQLiteBackend()
     db = Database(backend=backend)
     with db.transaction() as txn:
         txn.put(Hello, "test", Hello(hello="world"))
         doc = txn.fetch(Hello, "test")
-        assert doc.model.hello == "world"
+        expect(doc.model.hello).to_equal("world")
 
 
-def test_sqlite_backend_file(tmp_path: Path) -> None:
-    db_path = tmp_path / "test.db"
-    settings = SaplingSettings(sqlite_path=str(db_path))
-    backend = SQLiteBackend(settings=settings)
-    db = Database(backend=backend)
+@test
+def test_sqlite_backend_file():
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        db_path = Path(tmp_dir) / "test.db"
+        settings = SaplingSettings(sqlite_path=str(db_path))
+        backend = SQLiteBackend(settings=settings)
+        db = Database(backend=backend)
 
-    with db.transaction() as txn:
-        txn.put(Hello, "persistent", Hello(hello="saved"))
+        with db.transaction() as txn:
+            txn.put(Hello, "persistent", Hello(hello="saved"))
 
-    settings2 = SaplingSettings(sqlite_path=str(db_path))
-    db2 = Database(backend=SQLiteBackend(settings=settings2))
-    with db2.transaction() as txn:
-        doc = txn.fetch(Hello, "persistent")
-        assert doc.model.hello == "saved"
+        settings2 = SaplingSettings(sqlite_path=str(db_path))
+        db2 = Database(backend=SQLiteBackend(settings=settings2))
+        with db2.transaction() as txn:
+            doc = txn.fetch(Hello, "persistent")
+            expect(doc.model.hello).to_equal("saved")
 
 
+@test
 def test_backend_all_method():
     backend = SQLiteBackend()
     db = Database(backend=backend)
@@ -80,10 +87,11 @@ def test_backend_all_method():
         txn.put(Hello, "b", Hello(hello="beta"))
 
         all_docs = txn.all(Hello)
-        assert len(all_docs) == 2
-        assert {d.model_id for d in all_docs} == {"a", "b"}
+        expect(all_docs).to_have_length(2)
+        expect({d.model_id for d in all_docs}).to_equal({"a", "b"})
 
 
+@test
 def test_memory_backend():
     backend = MemoryBackend()
     db = Database(backend=backend)
@@ -91,22 +99,22 @@ def test_memory_backend():
     with db.transaction() as txn:
         txn.put(Hello, "test", Hello(hello="world"))
         doc = txn.fetch(Hello, "test")
-        assert doc.model.hello == "world"
+        expect(doc.model.hello).to_equal("world")
 
         txn.put(Hello, "1", Hello(hello="one"))
         txn.put(Hello, "2", Hello(hello="two"))
 
         all_docs = txn.all(Hello)
-        assert len(all_docs) == 3
-        assert {d.model_id for d in all_docs} == {"test", "1", "2"}
+        expect(all_docs).to_have_length(3)
+        expect({d.model_id for d in all_docs}).to_equal({"test", "1", "2"})
 
         txn.delete(Hello, "test")
-        assert txn.get(Hello, "test") is None
+        expect(txn.get(Hello, "test")).to_be_none()
 
-        with pytest.raises(NotFoundError):
-            txn.fetch(Hello, "test")
+        expect(lambda: txn.fetch(Hello, "test")).to_raise(NotFoundError)
 
 
+@test
 def test_deferred_initialization():
     backend = SQLiteBackend()
     db = Database(backend=backend, initialize=False)
@@ -116,9 +124,10 @@ def test_deferred_initialization():
     with db.transaction() as txn:
         txn.put(Hello, "test", Hello(hello="world"))
         doc = txn.fetch(Hello, "test")
-        assert doc.model.hello == "world"
+        expect(doc.model.hello).to_equal("world")
 
 
+@test
 def test_idempotent_initialization():
     backend = SQLiteBackend()
     db = Database(backend=backend, initialize=False)
@@ -131,10 +140,13 @@ def test_idempotent_initialization():
         txn.put(Hello, "test", Hello(hello="world"))
 
 
+@test
 def test_uninitialized_error():
     backend = SQLiteBackend()
     db = Database(backend=backend, initialize=False)
 
-    with pytest.raises(ValueError, match="not initialized"):  # noqa: SIM117
+    def try_uninitialized() -> None:
         with db.transaction() as txn:
             txn.put(Hello, "test", Hello(hello="world"))
+
+    expect(try_uninitialized).to_raise(ValueError, match="not initialized")
