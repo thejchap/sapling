@@ -5,7 +5,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING
 
 from pydantic import BaseModel
-from tryke import expect, test
+from tryke import describe, expect, test
 
 from sapling import MemoryBackend, SQLiteBackend
 from sapling.errors import NotFoundError
@@ -291,34 +291,6 @@ def test_all_empty() -> None:
 
 
 @test
-def test_sqlite_backend_memory() -> None:
-    backend = SQLiteBackend()
-    db = Database(backend=backend)
-    with db.transaction() as txn:
-        txn.put(_TestModel, "test", _TestModel(hello="world"))
-        doc = txn.fetch(_TestModel, "test")
-        expect(doc.model.hello).to_equal("world")
-
-
-@test
-def test_sqlite_backend_file() -> None:
-    with tempfile.TemporaryDirectory() as tmp_dir:
-        db_path = Path(tmp_dir) / "test.db"
-        settings = SaplingSettings(sqlite_path=str(db_path))
-        backend = SQLiteBackend(settings=settings)
-        db = Database(backend=backend)
-
-        with db.transaction() as txn:
-            txn.put(_TestModel, "persistent", _TestModel(hello="saved"))
-
-        settings2 = SaplingSettings(sqlite_path=str(db_path))
-        db2 = Database(backend=SQLiteBackend(settings=settings2))
-        with db2.transaction() as txn:
-            doc = txn.fetch(_TestModel, "persistent")
-            expect(doc.model.hello).to_equal("saved")
-
-
-@test
 def test_backend_all_method() -> None:
     backend = SQLiteBackend()
     db = Database(backend=backend)
@@ -355,39 +327,68 @@ def test_memory_backend() -> None:
         expect(lambda: txn.fetch(_TestModel, "test")).to_raise(NotFoundError)
 
 
-@test
-def test_deferred_initialization() -> None:
-    backend = SQLiteBackend()
-    db = Database(backend=backend, initialize=False)
+with describe("sqlite"):
 
-    db.initialize()
+    @test
+    def test_sqlite_backend_memory() -> None:
+        backend = SQLiteBackend()
+        db = Database(backend=backend)
+        with db.transaction() as txn:
+            txn.put(_TestModel, "test", _TestModel(hello="world"))
+            doc = txn.fetch(_TestModel, "test")
+            expect(doc.model.hello).to_equal("world")
 
-    with db.transaction() as txn:
-        txn.put(_TestModel, "test", _TestModel(hello="world"))
-        doc = txn.fetch(_TestModel, "test")
-        expect(doc.model.hello).to_equal("world")
+    @test
+    def test_sqlite_backend_file() -> None:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            db_path = Path(tmp_dir) / "test.db"
+            settings = SaplingSettings(sqlite_path=str(db_path))
+            backend = SQLiteBackend(settings=settings)
+            db = Database(backend=backend)
+
+            with db.transaction() as txn:
+                txn.put(_TestModel, "persistent", _TestModel(hello="saved"))
+
+            settings2 = SaplingSettings(sqlite_path=str(db_path))
+            db2 = Database(backend=SQLiteBackend(settings=settings2))
+            with db2.transaction() as txn:
+                doc = txn.fetch(_TestModel, "persistent")
+                expect(doc.model.hello).to_equal("saved")
 
 
-@test
-def test_idempotent_initialization() -> None:
-    backend = SQLiteBackend()
-    db = Database(backend=backend, initialize=False)
+with describe("initialization"):
 
-    db.initialize()
-    db.initialize()
-    db.initialize()
+    @test
+    def test_deferred_initialization() -> None:
+        backend = SQLiteBackend()
+        db = Database(backend=backend, initialize=False)
 
-    with db.transaction() as txn:
-        txn.put(_TestModel, "test", _TestModel(hello="world"))
+        db.initialize()
 
+        with db.transaction() as txn:
+            txn.put(_TestModel, "test", _TestModel(hello="world"))
+            doc = txn.fetch(_TestModel, "test")
+            expect(doc.model.hello).to_equal("world")
 
-@test
-def test_uninitialized_error() -> None:
-    backend = SQLiteBackend()
-    db = Database(backend=backend, initialize=False)
+    @test
+    def test_idempotent_initialization() -> None:
+        backend = SQLiteBackend()
+        db = Database(backend=backend, initialize=False)
 
-    def try_uninitialized() -> None:
+        db.initialize()
+        db.initialize()
+        db.initialize()
+
         with db.transaction() as txn:
             txn.put(_TestModel, "test", _TestModel(hello="world"))
 
-    expect(try_uninitialized).to_raise(ValueError, match="not initialized")
+    @test
+    def test_uninitialized_error() -> None:
+        backend = SQLiteBackend()
+        db = Database(backend=backend, initialize=False)
+
+        def try_uninitialized() -> None:
+            with db.transaction() as txn:
+                txn.put(_TestModel, "test", _TestModel(hello="world"))
+
+        expect(try_uninitialized).to_raise(ValueError, match="not initialized")
