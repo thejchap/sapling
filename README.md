@@ -8,8 +8,8 @@
 
 ## installation
 
-```
-pip install sapling-db
+```bash
+uv add sapling-db
 ```
 
 ## overview
