@@ -3,6 +3,12 @@
 [![ci](https://github.com/thejchap/sapling/actions/workflows/ci.yml/badge.svg)](https://github.com/thejchap/sapling/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
+## installation
+
+```
+pip install sapling-db
+```
+
 ## overview
 
 simple, zero-setup persistence for pydantic models
