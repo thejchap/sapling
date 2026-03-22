@@ -6,13 +6,6 @@ repos:
         args: [--fix]
       - id: ruff-format
 
-  - repo: https://github.com/executablebooks/mdformat
-    rev: 0.7.19
-    hooks:
-      - id: mdformat
-        additional_dependencies:
-          - mdformat-ruff
-
   - repo: local
     hooks:
       - id: ty

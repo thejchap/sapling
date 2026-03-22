@@ -1,7 +1,10 @@
 # sapling
 
-[![ci](https://github.com/thejchap/sapling/actions/workflows/ci.yml/badge.svg)](https://github.com/thejchap/sapling/actions/workflows/ci.yml)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+[![PyPI](https://img.shields.io/pypi/v/sapling-db)](https://pypi.org/project/sapling-db/)
+[![license](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python](https://img.shields.io/badge/python-3.12%20%7C%203.13%20%7C%203.14-blue.svg)](https://python.org)
+[![CI](https://github.com/thejchap/sapling/actions/workflows/ci.yml/badge.svg)](https://github.com/thejchap/sapling/actions/workflows/ci.yml)
 
 ## installation
 

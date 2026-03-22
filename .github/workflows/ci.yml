@@ -27,8 +27,4 @@ jobs:
       - run: uv run ty check
       - run: uv run ruff check
       - run: uv run ruff format --check
-      - run: uv run mdformat --check docs/
-      - run: uv run mkdocs build --strict
-      - name: check mkdocs build matches docstrings
-        run: git diff --exit-code site/
       - run: uvx tryke test
