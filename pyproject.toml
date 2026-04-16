@@ -30,8 +30,8 @@ dev = [
   "httpx>=0.28.1",
   "pre-commit>=4.0.1",
   "tryke @ git+https://github.com/thejchap/tryke",
-  "ruff>=0.13.0",
-  "ty>=0.0.4",
+  "ruff>=0.15.0",
+  "ty>=0.0.30",
 ]
 
 [tool.ruff]
@@ -40,8 +40,7 @@ indent-width = 4
 target-version = "py312"
 
 [tool.ruff.lint.per-file-ignores]
-# tryke's Depends() pattern requires function-call defaults on test params
-"tests/*.py" = ["ANN201", "PLR2004"]
+"tests/*.py" = ["ANN201", "PLR2004", "PT028"]
 "src/sapling/backends/sqlite.py" = ["S608"]
 
 [tool.ruff.lint.flake8-bugbear]
