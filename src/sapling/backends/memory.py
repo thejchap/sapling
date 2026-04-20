@@ -3,6 +3,8 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import TYPE_CHECKING, Self
 
+from tryke_guard import __TRYKE_TESTING__
+
 from sapling.backends.base import Backend
 from sapling.document import Document
 from sapling.errors import NotFoundError
@@ -103,3 +105,34 @@ class MemoryBackend(Backend):
         self, model_class: type[T], models: list[tuple[str, T]]
     ) -> list[Document[T]]:
         return [self.put(model_class, model_id, model) for model_id, model in models]
+
+
+if __TRYKE_TESTING__:
+    from pydantic import BaseModel as _BaseModel
+    from tryke import describe, expect, test
+
+    with describe("memory backend"):
+
+        class _TestModel(_BaseModel):
+            hello: str = "world"
+
+        @test
+        def test_memory_backend() -> None:
+            backend = MemoryBackend()
+            backend.initialize()
+            with backend.transaction() as txn:
+                txn.put(_TestModel, "test", _TestModel(hello="world"))
+                doc = txn.fetch(_TestModel, "test")
+                expect(doc.model.hello).to_equal("world")
+
+                txn.put(_TestModel, "1", _TestModel(hello="one"))
+                txn.put(_TestModel, "2", _TestModel(hello="two"))
+
+                all_docs = txn.all(_TestModel)
+                expect(all_docs).to_have_length(3)
+                expect({d.model_id for d in all_docs}).to_equal({"test", "1", "2"})
+
+                txn.delete(_TestModel, "test")
+                expect(txn.get(_TestModel, "test")).to_be_none()
+
+                expect(lambda: txn.fetch(_TestModel, "test")).to_raise(NotFoundError)

@@ -1,18 +1,13 @@
-from __future__ import annotations
-
-from typing import TYPE_CHECKING
+from collections.abc import Generator, Iterator
+from contextlib import AbstractContextManager
+from types import TracebackType
 
 from pydantic import BaseModel
+from tryke_guard import __TRYKE_TESTING__
 
-from sapling import SQLiteBackend
-
-if TYPE_CHECKING:
-    from collections.abc import Generator, Iterator
-    from contextlib import AbstractContextManager
-    from types import TracebackType
-
-    from sapling.backends.base import Backend
-    from sapling.document import Document
+from sapling.backends.base import Backend
+from sapling.backends.sqlite import SQLiteBackend
+from sapling.document import Document
 
 
 class _TransactionWrapper:
@@ -242,3 +237,162 @@ class Database:
         """
         with self.transaction() as txn:
             return txn.put_many(model_class, models)
+
+
+if __TRYKE_TESTING__:
+    from contextlib import contextmanager
+    from typing import Annotated
+
+    from fastapi import Depends as FastAPIDepends
+    from fastapi import FastAPI, status
+    from fastapi.testclient import TestClient
+    from tryke import Depends, describe, expect, fixture, test
+
+    from sapling.errors import NotFoundError
+
+    with describe("database"):
+
+        class _TestModel(BaseModel):
+            hello: str = "world"
+
+        @fixture
+        def database() -> Database:
+            return Database()
+
+        @fixture
+        def transaction(db: Database = Depends(database)) -> Generator[Backend]:
+            with db.transaction() as txn:
+                yield txn
+
+        @test
+        def test_basic(txn: Backend = Depends(transaction)) -> None:
+            hello = _TestModel()
+            pk = "hello"
+            record = txn.put(_TestModel, pk, hello)
+            expect(record.model_id).to_equal(pk)
+            maybe_record = txn.get(_TestModel, pk)
+            expect(maybe_record).to_be_truthy()
+            _record = txn.fetch(_TestModel, pk)
+            txn.delete(_TestModel, pk)
+            expect(lambda: txn.fetch(_TestModel, pk)).to_raise(NotFoundError)
+
+        @test
+        def test_all_method(txn: Backend = Depends(transaction)) -> None:
+            txn.put(_TestModel, "1", _TestModel(hello="one"))
+            txn.put(_TestModel, "2", _TestModel(hello="two"))
+            txn.put(_TestModel, "3", _TestModel(hello="three"))
+            all_hellos = txn.all(_TestModel)
+            expect(all_hellos).to_have_length(3)
+            expect({h.model_id for h in all_hellos}).to_equal({"1", "2", "3"})
+            expect({h.model.hello for h in all_hellos}).to_equal(
+                {"one", "two", "three"}
+            )
+
+        @test
+        def test_all_empty(txn: Backend = Depends(transaction)) -> None:
+            all_hellos = txn.all(_TestModel)
+            expect(all_hellos).to_equal([])
+
+    with describe("initialization"):
+
+        @test
+        def test_deferred_initialization() -> None:
+            db = Database(backend=SQLiteBackend(), initialize=False)
+            db.initialize()
+            with db.transaction() as txn:
+                txn.put(_TestModel, "test", _TestModel(hello="world"))
+                doc = txn.fetch(_TestModel, "test")
+                expect(doc.model.hello).to_equal("world")
+
+        @test
+        def test_idempotent_initialization() -> None:
+            db = Database(backend=SQLiteBackend(), initialize=False)
+            db.initialize()
+            db.initialize()
+            db.initialize()
+            with db.transaction() as txn:
+                txn.put(_TestModel, "test", _TestModel(hello="world"))
+
+        @test
+        def test_uninitialized_error() -> None:
+            db = Database(backend=SQLiteBackend(), initialize=False)
+
+            def try_uninitialized() -> None:
+                with db.transaction() as txn:
+                    txn.put(_TestModel, "test", _TestModel(hello="world"))
+
+            expect(try_uninitialized).to_raise(ValueError, match="not initialized")
+
+    with describe("fastapi"):
+
+        class User(BaseModel):
+            name: str
+            email: str
+
+        @contextmanager
+        def _client() -> Generator[TestClient]:
+            app = FastAPI(debug=True)
+            db = Database()
+
+            @app.post("/users/{user_id}")
+            def create_user(
+                user_id: str,
+                user: User,
+                txn: Annotated[Backend, FastAPIDepends(db.transaction_dependency)],
+            ) -> dict:
+                doc = txn.put(User, user_id, user)
+                return {"id": doc.model_id, "user": doc.model.model_dump()}
+
+            @app.get("/users/{user_id}")
+            def get_user(
+                user_id: str,
+                txn: Annotated[Backend, FastAPIDepends(db.transaction_dependency)],
+            ) -> dict:
+                doc = txn.fetch(User, user_id)
+                return doc.model.model_dump()
+
+            @app.delete("/users/{user_id}", status_code=status.HTTP_204_NO_CONTENT)
+            def delete_user(
+                user_id: str,
+                txn: Annotated[Backend, FastAPIDepends(db.transaction_dependency)],
+            ) -> None:
+                txn.delete(User, user_id)
+
+            @app.get("/users/{user_id}/error")
+            def get_user_with_error(
+                user_id: str,
+                txn: Annotated[Backend, FastAPIDepends(db.transaction_dependency)],
+            ) -> dict:
+                txn.put(User, user_id, User(name="test", email="test@example.com"))
+                raise ValueError
+
+            with TestClient(app, raise_server_exceptions=False) as client:
+                yield client
+
+        @test
+        def test_create_user() -> None:
+            with _client() as client:
+                response = client.post(
+                    "/users/user1",
+                    json={"name": "alice", "email": "alice@example.com"},
+                )
+                expect(response.status_code).to_equal(status.HTTP_200_OK)
+                data = response.json()
+                expect(data["id"]).to_equal("user1")
+                expect(data["user"]["name"]).to_equal("alice")
+
+        @test
+        def test_get_nonexistent_user_raises_not_found() -> None:
+            with _client() as client:
+                response = client.get("/users/nonexistent")
+                expect(response.status_code).to_equal(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
+
+        @test
+        def test_error_in_route_returns_500() -> None:
+            with _client() as client:
+                response = client.get("/users/user3/error")
+                expect(response.status_code).to_equal(
+                    status.HTTP_500_INTERNAL_SERVER_ERROR
+                )
