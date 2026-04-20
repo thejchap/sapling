@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import TYPE_CHECKING, Any, Self, override
 
 from pydantic import BaseModel
+from tryke_guard import __TRYKE_TESTING__
 
 from sapling.backends.base import Backend
 from sapling.document import Document
@@ -280,3 +281,52 @@ RETURNING model_class, model_id, model
         return [
             self._row_to_document(model_class, cursor, row) for row in cursor.fetchall()
         ]
+
+
+if __TRYKE_TESTING__:
+    import tempfile
+    from pathlib import Path
+
+    from tryke import describe, expect, test
+
+    with describe("sqlite backend"):
+
+        class _TestModel(BaseModel):
+            hello: str = "world"
+
+        @test
+        def test_sqlite_backend_memory() -> None:
+            backend = SQLiteBackend()
+            backend.initialize()
+            with backend.transaction() as txn:
+                txn.put(_TestModel, "test", _TestModel(hello="world"))
+                doc = txn.fetch(_TestModel, "test")
+                expect(doc.model.hello).to_equal("world")
+
+        @test
+        def test_sqlite_backend_file() -> None:
+            with tempfile.TemporaryDirectory() as tmp_dir:
+                db_path = Path(tmp_dir) / "test.db"
+                settings = SaplingSettings(sqlite_path=str(db_path))
+                backend = SQLiteBackend(settings=settings)
+                backend.initialize()
+                with backend.transaction() as txn:
+                    txn.put(_TestModel, "persistent", _TestModel(hello="saved"))
+
+                settings2 = SaplingSettings(sqlite_path=str(db_path))
+                backend2 = SQLiteBackend(settings=settings2)
+                backend2.initialize()
+                with backend2.transaction() as txn:
+                    doc = txn.fetch(_TestModel, "persistent")
+                    expect(doc.model.hello).to_equal("saved")
+
+        @test
+        def test_backend_all_method() -> None:
+            backend = SQLiteBackend()
+            backend.initialize()
+            with backend.transaction() as txn:
+                txn.put(_TestModel, "a", _TestModel(hello="alpha"))
+                txn.put(_TestModel, "b", _TestModel(hello="beta"))
+                all_docs = txn.all(_TestModel)
+                expect(all_docs).to_have_length(2)
+                expect({d.model_id for d in all_docs}).to_equal({"a", "b"})

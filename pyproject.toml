@@ -40,8 +40,8 @@ indent-width = 4
 target-version = "py312"
 
 [tool.ruff.lint.per-file-ignores]
-"tests/*.py" = ["ANN201", "PLR2004", "PT028"]
 "src/sapling/backends/sqlite.py" = ["S608"]
+"src/sapling/database.py" = ["PT028"]
 
 [tool.ruff.lint.flake8-bugbear]
 extend-immutable-calls = ["tryke.Depends"]
